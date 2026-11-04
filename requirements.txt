@@ -10,3 +10,11 @@ pandas==3.0.6         # 表格整理与按个体/场景/批次分组统计
 matplotlib==3.11.0    # 时频图、性能曲线绘制（后续阶段）
 scikit-learn==1.9.1   # 评价指标：Macro-F1、混淆矩阵（后续阶段）
 torch==2.15.0         # 轻量 CNN 训练与推理（后续阶段）
+
+# ---- Q2（STFT 时频图）实际运行环境：conda Lpytorch / Python 3.8.20 ----
+# 若在 Lpytorch 环境中跑 python/Q2，以本节版本为准（该环境 pip 连不上 PyPI，
+# h5py 需用 cp38 wheel 离线安装：pip install h5py-3.11.0-cp38-cp38-win_amd64.whl --no-index）
+numpy==1.24.4         # 数值计算
+scipy==1.10.1         # 信号处理
+matplotlib==3.7.2     # 时频图绘制
+h5py==3.11.0          # 读取 .mat（HDF5）中的 I/Q 通道

@@ -36,5 +36,13 @@
     "pad_inches": 0.05,
     "pdf_fonttype": 42,
     "ps_fonttype": 42
+  },
+
+  "_stft_说明": "时频图（STFT）专用样式：colormap 选感知均匀的 viridis，避免 jet 造成的虚假边界；db_floor 为色标下限（相对峰值 dB）",
+  "stft": {
+    "colormap": "viridis",
+    "db_floor": -80.0,
+    "grid_figsize": [15.0, 8.5],
+    "colorbar_fraction": 0.02
   }
 }

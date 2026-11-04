@@ -1,0 +1,30 @@
+{
+  "_说明": "Q2 stage_1（STFT 时频图探查）参数。只放数据与信号处理参数；绘图配色/尺寸统一在项目根 config_pic.json 的 stft 段。",
+
+  "_data_dir_说明": "流式提取出的训练集 .mat 目录（HDF5：I/Q 两个 float32 数据集）",
+  "data_dir": "D:/智能通信网络数据集/train_extracted",
+  "glob_pattern": "*.mat",
+
+  "_fs_hz_说明": "采样率。按 4,000,000 点 / 50 ms 反推为 80 MHz，非文件元数据实测值；若时长假设不成立，频率轴刻度会整体缩放",
+  "fs_hz": 80000000,
+
+  "_scene_说明": "采集条件筛选：统一取 IN_S0（视距），保证各型号横向可比；background 无场景标记，单独取一个",
+  "scene": "IN_S0",
+  "scene_sep": "_",
+  "slice_sep": "_slice_",
+  "background_prefix": "background",
+
+  "_show_ms_说明": "每个信号只取开头多少毫秒做 STFT（4M 点全长画出来细结构会被压扁）",
+  "show_ms": 5.0,
+
+  "_frame_len_说明": "帧长（采样点数），建议在 notebook 顶部参数单元覆盖，不必改这里",
+  "frame_len": 256,
+  "_hop_ratio_说明": "帧移 = 帧长 × hop_ratio，0.25 表示 75% 重叠",
+  "hop_ratio": 0.25,
+  "_n_fft_说明": "FFT 点数；null 表示等于帧长（不补零）",
+  "n_fft": null,
+  "window": "hann",
+
+  "_freq_limit_mhz_说明": "频率显示上限（MHz）；40 = 铺满奈奎斯特带 [-fs/2, fs/2]，10 左右可放大看占用带细节",
+  "freq_limit_mhz": 40.0
+}
