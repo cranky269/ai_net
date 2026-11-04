@@ -1,0 +1,12 @@
+# 低信噪比无人机射频信号预处理与智能识别 —— Python 依赖
+# 环境：Python 3.13.2（Windows），以下版本均已在本机实测通过
+# 安装：python -m pip install -r requirements.txt
+
+numpy==2.5.1          # 数值计算：IQ 数组运算、FFT、统计量
+scipy==1.18.1         # 信号处理：后续滤波/重采样与 STFT 对照实现
+h5py==3.16.0          # 读取 .mat（HDF5 格式）中的 I/Q 通道
+openpyxl==3.1.5       # 写出 xlsx 结果表（每个 xlsx 含“说明”工作表）
+pandas==3.0.6         # 表格整理与按个体/场景/批次分组统计
+matplotlib==3.11.0    # 时频图、性能曲线绘制（后续阶段）
+scikit-learn==1.9.1   # 评价指标：Macro-F1、混淆矩阵（后续阶段）
+torch==2.15.0         # 轻量 CNN 训练与推理（后续阶段）

@@ -1,0 +1,40 @@
+{
+  "_说明": "全项目统一绘图配置（配色/字体/尺寸）。所有画图脚本都从这里取样式，不要在代码里硬编码颜色。论文风：Times New Roman + ColorBrewer 配色 + 矢量字体。",
+
+  "font_family": "Times New Roman",
+  "font_size": 11,
+
+  "figure": {
+    "dpi": 300,
+    "figsize": [12.0, 4.8],
+    "facecolor": "#FFFFFF"
+  },
+
+  "palette": {
+    "primary": "#1f78b4",
+    "secondary": "#e41a1c",
+    "accent": "#33a02c",
+    "warm": "#d73027",
+    "cool": "#4575b4",
+    "neutral": "#999999",
+    "grid": "#d9d9d9",
+    "text": "#262626"
+  },
+
+  "axes": {
+    "spines_top": false,
+    "spines_right": false,
+    "grid_alpha": 0.3,
+    "grid_linestyle": "-",
+    "grid_linewidth": 0.5,
+    "labelsize": 12,
+    "titlesize": 13
+  },
+
+  "save": {
+    "bbox_inches": "tight",
+    "pad_inches": 0.05,
+    "pdf_fonttype": 42,
+    "ps_fonttype": 42
+  }
+}
