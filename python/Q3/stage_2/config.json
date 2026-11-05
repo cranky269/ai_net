@@ -1,0 +1,38 @@
+{
+  "_说明": "Q3 stage_2（CNN 训练与评估）参数。数据集参数在 stage_1/config.json，这里只管训练。",
+
+  "_arch_说明": "模型架构 YAML（相对项目根）；也可把 YAML 改成 type: module 指向自定义模型文件",
+  "arch": "python/Q3/stage_2/arch/cnn4.yaml",
+
+  "_weights_说明": "预训练权重（.pt）；null 表示从头训练，命令行 --weights 可覆盖",
+  "weights": null,
+
+  "_cache_dir_说明": "stage_1 生成的 npy 缓存目录（相对项目根）",
+  "cache_dir": "data/_q3_cache",
+  "index_xlsx": "result/Q3/cache_index.xlsx",
+
+  "_dtype_说明": "缓存精度，必须与 stage_1/config.json 一致，决定输入归一化方式",
+  "dtype": "uint8",
+  "db_floor": -80.0,
+
+  "batch_size": 8,
+  "epochs": 10,
+  "lr": 0.001,
+  "weight_decay": 0.0001,
+
+  "num_workers": 0,
+
+  "_seeds_说明": "各过程独立的随机种子：init 模型参数初始化、loader 训练集打乱；改其中一个不影响另一个",
+  "seeds": {
+    "init": 2024,
+    "loader": 7
+  },
+
+  "device": "cpu",
+
+  "save_dir": "result/Q3/weights",
+  "metrics_xlsx": "result/Q3/train_metrics.xlsx",
+  "loss_curve_png": "image/Q3/loss_curve.png",
+  "confusion_png": "image/Q3/confusion_matrix.png",
+  "log_file": "log/Q3/train.log"
+}

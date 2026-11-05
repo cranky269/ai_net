@@ -1,0 +1,60 @@
+# Q3 CNN 架构：4 层卷积 + 全局池化 + 全连接（默认架构）
+#
+# 两种写法二选一：
+#   1) layers 逐层描述（本文件）——conv / pool / adaptive_pool / flatten / dropout / fc
+#   2) 自定义模型文件：
+#        type: module
+#        module: my_net.py      # 相对本 YAML 所在目录
+#        class: MyNet           # 无参构造，需接受 num_classes 时改成 MyNet(num_classes)
+#
+# 输入尺寸不写死，由数据参数（frames_per_image × 2048）推导；
+# 结构上用 stride 与池化先把 1560×2048 降下来，最后 adaptive_pool 固定到 4×8。
+
+name: cnn4
+input_channels: 1
+
+layers:
+  - type: conv
+    out_channels: 16
+    kernel_size: 5
+    stride: 2
+    padding: 2
+    norm: batch
+    act: relu
+    pool: 2          # 1560x2048 -> 390x512
+
+  - type: conv
+    out_channels: 32
+    kernel_size: 3
+    stride: 2
+    padding: 1
+    norm: batch
+    act: relu
+    pool: 2          # 390x512 -> 98x128
+
+  - type: conv
+    out_channels: 64
+    kernel_size: 3
+    stride: 2
+    padding: 1
+    norm: batch
+    act: relu
+    pool: 2          # 98x128 -> 25x32
+
+  - type: conv
+    out_channels: 64
+    kernel_size: 3
+    stride: 1
+    padding: 1
+    norm: batch
+    act: relu
+    pool: 2          # 25x32 -> 13x16
+
+  - type: adaptive_pool
+    output: [4, 8]   # 13x16 -> 4x8，与输入尺寸解耦
+
+  - type: flatten
+  - type: dropout
+    p: 0.3
+  - type: fc
+    out_features: 7  # 类别数，train.py 会按实际类别覆盖

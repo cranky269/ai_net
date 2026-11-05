@@ -89,9 +89,10 @@ def parse_args(cfg):
     parser.add_argument("--sweep", action="store_true",
                         help="遍历 FRAME_LEN_CANDIDATES 全部帧长各出一张图，"
                              "并额外生成一张同信号的帧长对比图")
-    parser.add_argument("--compare-signal", default="C",
-                        help="--sweep 生成对比图时用哪个型号，默认 C（窄带谱线多，"
-                             "帧长差异最明显）；不存在则用第一个型号")
+    parser.add_argument("--compare-signal",
+                        default=str(cfg.get("sweep_compare_signal", "C")),
+                        help="--sweep 生成对比图时用哪个型号（默认取 config.json）；"
+                             "不存在则用第一个型号")
     parser.add_argument("--show", action="store_true", help="出图后弹窗显示")
     return parser.parse_args()
 
@@ -167,6 +168,7 @@ def plot_grid(samples, cfg, pic, frame_len, hop, n_fft, n_show,
               freq_limit_mhz, db_floor, out_png):
     """每型号 1 个子图的 STFT 时频图，共享坐标轴与色标；返回保存路径。"""
     fs = float(cfg["fs_hz"])
+    fc_mhz = float(cfg["center_freq_hz"]) / 1e6
     n = len(samples)
     ncol = min(4, n)
     nrow = int(np.ceil(n / ncol))
@@ -181,16 +183,19 @@ def plot_grid(samples, cfg, pic, frame_len, hop, n_fft, n_show,
         mesh = ax.imshow(db[:, band].T, origin="lower", aspect="auto",
                          interpolation="nearest", vmin=db_floor, vmax=0.0,
                          cmap=pic["stft"]["colormap"],
-                         extent=[t_ms[0], t_ms[-1], f_mhz[band][0], f_mhz[band][-1]])
+                         extent=[t_ms[0], t_ms[-1],
+                                 fc_mhz + f_mhz[band][0], fc_mhz + f_mhz[band][-1]])
         info = parse_name(path, cfg)
         ax.set_title("%s  (%s · %s)" % (model, info["unit"], info["scene"]))
         ax.set_xlabel("Time (ms)")
         ax.set_ylabel("Frequency (MHz)")
     for ax in axes.ravel()[n:]:
         ax.axis("off")
-    fig.suptitle("STFT of %.3g ms IQ | frame %d pts (%.2f us, %.1f kHz/bin) | hop %d pts"
+    fig.suptitle("STFT of %.3g ms IQ | frame %d pts (%.2f us, %.1f kHz/bin) | hop %d pts "
+                 "| %.0f-%.0f MHz"
                  % (n_show / fs * 1e3, frame_len, frame_len / fs * 1e6,
-                    fs / n_fft / 1e3, hop),
+                    fs / n_fft / 1e3, hop,
+                    fc_mhz - freq_limit_mhz, fc_mhz + freq_limit_mhz),
                  fontsize=pic["axes"]["titlesize"])
     cax = fig.add_axes([0.92, 0.12, 0.012, 0.76])
     cbar = fig.colorbar(mesh, cax=cax)
@@ -206,6 +211,7 @@ def plot_sweep_compare(samples, cfg, pic, frame_lens, hop_ratio, n_show,
                        freq_limit_mhz, db_floor, out_png, compare_model=None):
     """同一个信号在多个帧长下的时频图并排，直观比较时间/频率分辨率的取舍。"""
     fs = float(cfg["fs_hz"])
+    fc_mhz = float(cfg["center_freq_hz"]) / 1e6
     if compare_model and compare_model in samples:
         model, path = compare_model, samples[compare_model]
     else:
@@ -223,14 +229,16 @@ def plot_sweep_compare(samples, cfg, pic, frame_lens, hop_ratio, n_show,
         mesh = ax.imshow(db[:, band].T, origin="lower", aspect="auto",
                          interpolation="nearest", vmin=db_floor, vmax=0.0,
                          cmap=pic["stft"]["colormap"],
-                         extent=[t_ms[0], t_ms[-1], f_mhz[band][0], f_mhz[band][-1]])
+                         extent=[t_ms[0], t_ms[-1],
+                                 fc_mhz + f_mhz[band][0], fc_mhz + f_mhz[band][-1]])
         ax.set_title("frame %d  (%.1f kHz/bin)" % (n, fs / n / 1e3))
         ax.set_xlabel("Time (ms)")
         ax.set_ylabel("Frequency (MHz)")
     for ax in axes.ravel()[len(frame_lens):]:
         ax.axis("off")
-    fig.suptitle("Same IQ (%s, %s) under %d frame lengths | %.3g ms window"
-                 % (model, path.name, len(frame_lens), n_show / fs * 1e3),
+    fig.suptitle("Same IQ (%s, %s) under %d frame lengths | %.3g ms window | %.0f-%.0f MHz"
+                 % (model, path.name, len(frame_lens), n_show / fs * 1e3,
+                    fc_mhz - freq_limit_mhz, fc_mhz + freq_limit_mhz),
                  fontsize=pic["axes"]["titlesize"])
     cax = fig.add_axes([0.92, 0.12, 0.012, 0.76])
     fig.colorbar(mesh, cax=cax).set_label("Magnitude (dB re. peak)")
@@ -251,6 +259,7 @@ def main():
     args = parse_args(cfg)
 
     fs = float(cfg["fs_hz"])
+    fc_mhz = float(cfg["center_freq_hz"]) / 1e6
     frame_len = int(args.frame_len)
     hop = max(1, int(round(frame_len * float(args.hop_ratio))))
     n_fft = int(cfg["n_fft"]) if cfg.get("n_fft") else frame_len

@@ -1,0 +1,40 @@
+{
+  "_说明": "Q3 stage_1（STFT → npy 缓存）参数。帧长 2048、统一截取前 50 ms 为不可调常量，见 common/q3_common.py。",
+
+  "_hop_ratio_说明": "帧移 / 帧长；0.5 表示 hop = 1024 点",
+  "hop_ratio": 0.5,
+
+  "_frames_per_image_说明": "每张图的时间帧数；50 ms 内的总帧数除以它得到每片段切几张（余数丢弃）",
+  "frames_per_image": 1560,
+
+  "_dtype_说明": "缓存精度：uint8（0~255 灰度）/ float16 / float32",
+  "dtype": "uint8",
+
+  "_db_floor_说明": "灰度映射下限（dB，相对峰值）；uint8 时 dB ∈ [floor, 0] 线性映射到 0~255",
+  "db_floor": -80.0,
+
+  "_bg_resample_说明": "某类样本不足 max_per_class 时，是否循环重采样补齐（主要针对只有 52 张的 BG）",
+  "bg_resample": false,
+
+  "_max_per_class_说明": "每个类别最多取多少张图，按文件名排序取前面的片段；0 表示不限（全量）",
+  "max_per_class": 100,
+
+  "_splits_说明": "要构建哪些子集，对应 Q1 划分表里的 split 取值",
+  "splits": ["train", "test"],
+
+  "_fs_hz_说明": "采样率，与 Q2 一致（4M 点 / 50 ms 推算）",
+  "fs_hz": 80000000,
+
+  "window": "hann",
+
+  "_mat_dir_说明": "原始 .mat 所在目录（相对项目根；data 是指向 D:/智能通信网络数据集 的 junction）",
+  "mat_dir": "data/train_extracted",
+
+  "_cache_dir_说明": "npy 缓存目录，相对项目根；与 mat_dir 同盘，避免占用 C 盘",
+  "cache_dir": "data/_q3_cache",
+
+  "_index_xlsx_说明": "缓存索引明细表（含“说明”工作表）",
+  "index_xlsx": "result/Q3/cache_index.xlsx",
+
+  "log_file": "log/Q3/build_cache.log"
+}

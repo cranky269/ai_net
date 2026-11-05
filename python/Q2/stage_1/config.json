@@ -8,6 +8,9 @@
   "_fs_hz_说明": "采样率。按 4,000,000 点 / 50 ms 反推为 80 MHz，非文件元数据实测值；若时长假设不成立，频率轴刻度会整体缩放",
   "fs_hz": 80000000,
 
+  "_center_freq_hz_说明": "射频中心频率。数据集采集范围为 2.4~2.48 GHz，取中点 2440 MHz；绘图时把基带频率 -40~+40 MHz 平移成 2400~2480 MHz 绝对刻度",
+  "center_freq_hz": 2440000000,
+
   "_scene_说明": "采集条件筛选：统一取 IN_S0（视距），保证各型号横向可比；background 无场景标记，单独取一个",
   "scene": "IN_S0",
   "scene_sep": "_",
@@ -15,9 +18,9 @@
   "background_prefix": "background",
 
   "_show_ms_说明": "每个信号只取开头多少毫秒做 STFT（4M 点全长画出来细结构会被压扁）",
-  "show_ms": 5.0,
+  "show_ms": 50.0,
 
-  "_frame_len_说明": "帧长（采样点数），建议在 notebook 顶部参数单元覆盖，不必改这里",
+  "_frame_len_说明": "帧长（采样点数），命令行 --frame-len 可临时覆盖，不必改这里",
   "frame_len": 256,
   "_hop_ratio_说明": "帧移 = 帧长 × hop_ratio，0.25 表示 75% 重叠",
   "hop_ratio": 0.25,
@@ -26,5 +29,22 @@
   "window": "hann",
 
   "_freq_limit_mhz_说明": "频率显示上限（MHz）；40 = 铺满奈奎斯特带 [-fs/2, fs/2]，10 左右可放大看占用带细节",
-  "freq_limit_mhz": 40.0
+  "freq_limit_mhz": 40.0,
+
+  "_sweep_compare_signal_说明": "--sweep 生成帧长对比图时用哪个型号（窄带谱线多的型号差异最明显）",
+  "sweep_compare_signal": "C",
+
+  "_native_size_说明": "stft_native_size.py 专用：单信号 1:1 原版尺寸出图的默认参数；命令行可覆盖",
+  "native_size": {
+    "_signal_说明": "型号（A/C/D/E/F/G/BG），不存在则用第一个",
+    "signal": "D",
+    "_frame_len_说明": "帧长（采样点数）",
+    "frame_len": 2048,
+    "_hop_ratio_说明": "帧移 / 帧长；null 表示沿用顶层 hop_ratio",
+    "hop_ratio": 1.0,
+    "_show_ms_说明": "参与 STFT 的时长：\"config\" 用顶层 show_ms；数字为毫秒；\"full\" 用整段",
+    "show_ms": "config",
+    "_dpi_说明": "像素换算基准（与 figsize 联动，不影响数据区像素数）",
+    "dpi": 100
+  }
 }

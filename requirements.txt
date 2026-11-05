@@ -10,6 +10,7 @@ pandas==3.0.6         # 表格整理与按个体/场景/批次分组统计
 matplotlib==3.11.0    # 时频图、性能曲线绘制（后续阶段）
 scikit-learn==1.9.1   # 评价指标：Macro-F1、混淆矩阵（后续阶段）
 torch==2.15.0         # 轻量 CNN 训练与推理（后续阶段）
+pyyaml==6.0.3         # 读取模型架构 YAML（Q3）
 
 # ---- Q2（STFT 时频图）实际运行环境：conda Lpytorch / Python 3.8.20 ----
 # 若在 Lpytorch 环境中跑 python/Q2，以本节版本为准（该环境 pip 连不上 PyPI，
