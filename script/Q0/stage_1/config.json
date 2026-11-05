@@ -1,0 +1,21 @@
+{
+  "data_root": "D:/智能通信网络数据集",
+  "volume_pattern": "**/*.z01",
+  "extract_dir": "D:/智能通信网络数据集/_probe_extracted",
+  "max_extract_files": 6,
+  "extensions": [".mat"],
+  "verify_crc": true,
+
+  "fs_hz": 80000000,
+  "center_freq_hz": 2440000000,
+
+  "snr_estimate": {
+    "segment_len": 4096,
+    "max_segments": 512,
+    "signal_over_floor_db": 10.0
+  },
+
+  "output_xlsx": "output/Q0/probe_summary.xlsx",
+  "log_file": "log/Q0/probe_pipeline.log",
+  "log_level": "INFO"
+}

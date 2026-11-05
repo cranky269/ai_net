@@ -10,8 +10,6 @@
 /skill
 .mcp.json
 /node_modules
-/output
-/script
 /log
 /.codebuddy
 /other

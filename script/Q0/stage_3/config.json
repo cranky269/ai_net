@@ -1,0 +1,17 @@
+{
+  "inventory_file": "output/Q0/inventory.json",
+  "labels_dir": "data/train_extracted",
+  "report_file": "docs/Q0/数据集实际情况.md",
+  "stats_xlsx": "output/Q0/dataset_stats.xlsx",
+  "log_file": "log/Q0/dataset_report.log",
+  "dataset_name": "DroneRFb-DIR",
+
+  "official_spec": {
+    "drone_models": 6,
+    "individuals_per_model": 3,
+    "background_classes": 1,
+    "min_slices_per_class": 40,
+    "min_samples_per_slice": 4000000,
+    "freq_range_ghz": [2.4, 2.48]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "extract_dir": "data/train_extracted",
+  "output_xlsx": "output/Q1/splits/dataset_split.xlsx",
+  "log_file": "log/Q1/split_dataset.log",
+
+  "scene_split": {
+    "train_scenes": ["IN_S0", "IN_S1"],
+    "test_scenes": ["IN_S2"]
+  },
+
+  "background": {
+    "train_ratio": 0.7,
+    "seed": 42
+  }
+}

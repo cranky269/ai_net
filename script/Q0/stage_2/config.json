@@ -1,0 +1,19 @@
+{
+  "urls_file": "docs/Q0/84cf9101e739402784b1396783881202.txt",
+  "inventory_file": "output/Q0/inventory.json",
+
+  "volume_dir": "D:/智能通信网络数据集/_volumes",
+  "extract_dir": "D:/智能通信网络数据集/train_extracted",
+  "test_extract_dir": "D:/智能通信网络数据集/test_extracted",
+  "state_file": "D:/智能通信网络数据集/_volumes/_state.txt",
+  "test_state_file": "D:/智能通信网络数据集/_volumes/_state_test.txt",
+  "test_labels_file": "D:/智能通信网络数据集/train_extracted/test_labels.txt",
+  "test_keep_conds": ["IN", "BG"],
+
+  "keep_test": false,
+  "delete_volume_after_extract": true,
+  "download_threads": 16,
+
+  "log_file": "log/Q0/download_pipeline.log",
+  "log_level": "INFO"
+}
