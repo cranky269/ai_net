@@ -44,5 +44,15 @@
     "db_floor": -80.0,
     "grid_figsize": [15.0, 8.5],
     "colorbar_fraction": 0.02
+  },
+
+  "_stage2_说明": "Q2 stage_2 加噪对比图：行=型号，列=无噪+各 SNR 档，全图共享 dB 参考色标",
+  "stage2": {
+    "compare_figsize": [18.0, 9.0]
+  },
+
+  "_q25_说明": "Q2.5 中值滤波对比图：行=无滤波+各窗口，列=各 SNR 档，全图共享 dB 参考色标",
+  "q25": {
+    "filter_figsize": [16.0, 13.0]
   }
 }

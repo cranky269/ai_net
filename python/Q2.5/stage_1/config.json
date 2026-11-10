@@ -1,0 +1,58 @@
+{
+  "_说明": "Q2.5 stage_1（预处理算法：频率方向中值滤波 / 幅度域维纳滤波）参数。STFT 参数取 Q2 stage_1 的 config.json，配色尺寸取项目根 config_pic.json。",
+
+  "_methods_说明": "预处理方法配置，两种方法都作用在 STFT 幅度谱上；stage_2 探针读同一份，保证图与表的配置、随机流完全一致",
+  "methods": {
+    "_median_windows_说明": "频率方向中值窗口（频点数，>=3 的奇数）；当前 STFT 每频点 312.5 kHz，窗口 17 约 5.3 MHz",
+    "median_windows": [3, 5, 9, 17],
+    "median_mode": "reflect",
+
+    "_wiener_alphas_说明": "维纳过减系数档位：1.0 为标准维纳，越大压制越强",
+    "wiener_alphas": [1.0, 1.5, 2.0, 3.0],
+    "_wiener_win_说明": "噪声功率分位估计窗口（帧）",
+    "wiener_win": 500,
+    "_wiener_q_说明": "噪声底分位数，0.1 表示取窗口内的 10% 分位",
+    "wiener_q": 0.1,
+    "_wiener_smooth_说明": "噪声功率沿时间的一阶递归平滑系数",
+    "wiener_smooth": 0.7,
+    "_wiener_bias_说明": "低分位 → 噪声均值 的偏差补偿（指数分布 10% 分位约为均值的 0.1054 倍）",
+    "wiener_bias": 9.49,
+    "_wiener_beta_说明": "增益下限，防止过度衰减到 0",
+    "wiener_beta": 0.05,
+    "_wiener_step_说明": "分位计算的块间步长（帧）；null 表示按 wiener_step_ratio × wiener_win 推导",
+    "wiener_step": null,
+    "_wiener_step_ratio_说明": "wiener_step 为 null 时生效；越小越准、越慢（0.125 实测中位误差约 0.8%）",
+    "wiener_step_ratio": 0.125
+  },
+
+  "_plots_说明": "对比图分组：每张图 = 行(无滤波 + 该方法各参数) × 列(各档 SNR)；methods 里的值是 processors.py 的注册名（median_freq / wiener）",
+  "plots": [
+    {
+      "_name_说明": "分组名，仅用于日志区分",
+      "name": "median",
+      "methods": ["median_freq"],
+      "_title_说明": "图标题（英文，与图内标注风格一致）",
+      "title": "Frequency-direction median filter on STFT",
+      "out_png": "image/Q2.5/median_compare.png"
+    },
+    {
+      "name": "wiener",
+      "methods": ["wiener"],
+      "title": "Amplitude-domain Wiener filter on STFT",
+      "out_png": "image/Q2.5/wiener_compare.png"
+    }
+  ],
+
+  "_plot_max_frames_说明": "出图前沿时间轴做最大值池化的帧数上限（6 万帧画在约 1600 px 宽的图上，逐帧保留会让单张图占到 GB 级内存）；null 或 0 表示不池化、逐帧保留",
+  "plot_max_frames": 4096,
+
+  "_plot_sample_说明": "STFT 对比图所用样本（单条，文件名在 data_dir 下）",
+  "plot_sample": "A1_IN_S0_slice_1.mat",
+  "_plot_split_说明": "样本所属 split（决定种子派生）",
+  "plot_split": "train",
+
+  "_snr_db_list_说明": "信噪比档位（dB）；出图与探针共用",
+  "snr_db_list": [-10.0, -5.0, 0.0, 5.0, 10.0],
+  "_base_seed_说明": "随机种子根；与 Q2 加噪同一套 SeedSequence 体系",
+  "base_seed": 2024
+}

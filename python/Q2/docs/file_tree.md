@@ -15,6 +15,15 @@
 
 | `stft_native_size.py` | 单信号 1:1 原版尺寸出图：数据区 1 帧 = 1 px、1 bin = 1 px，不做降采样；用于查看真实像素数与 PNG 体积，坐标轴与色标照常保留 |
 
+### stage_2 —— IQ 加噪与对比图
+
+| 文件 | 作用 |
+|---|---|
+| `config.json` | 本阶段参数：数据目录与匹配规则、Q1 划分表与 sheet、随机种子根 `base_seed`、SNR 档位 `snr_db_list`、背景类型号名与是否纳入、对比图选样（型号/集合/场景/时长）与输出路径 |
+| `awgn.py` | 加噪核心：`SeedSequence` 种子派生、`signal_power`/`sigma_for_snr`、复高斯 `generate_noise`、单条 `add_awgn`、按固定顺序批量的 `iter_split` 内存迭代器（不落盘） |
+| `plot_noise_compare.py` | 对比图：读 stage_1 的 STFT 参数 → 选样 → 原始/加噪 STFT（统一 dB 参考）→ 3 型号 × （无噪 + 各档 SNR）网格图 |
+| `README.md` | 本阶段运行说明、加噪公式、可复现约定、接口与参数表 |
+
 ### docs
 
 | 文件 | 作用 |
@@ -28,15 +37,17 @@
 | `stft_frame_XXXX.png` | 帧长为 XXXX 点时，7 类信号（A/C/D/E/F/G 型号 + background）并排的 STFT 时频图，纵轴为 2400~2480 MHz 绝对频率；配色与尺寸取自项目根 `config_pic.json` |
 | `stft_sweep_compare.png` | `--sweep` 生成：同一型号信号在 `FRAME_LEN_CANDIDATES` 各帧长下并排，用于选帧长 |
 | `stft_native_f<帧长>_<时长>ms.png` | `stft_native_size.py` 输出：单信号 1:1 原版尺寸时频图（数据区 1 帧 = 1 px、1 bin = 1 px） |
+| `stage2/noise_compare_3x6.png` | `plot_noise_compare.py` 输出：3 行（A/C/D 型号）× 6 列（无噪 + 5 档 SNR）的加噪前后 STFT 对比图，全图共享同一 dB 参考（每行无噪峰值） |
 
 ## log/Q2 —— 运行日志
 
 | 文件 | 作用 |
 |---|---|
 | `stft_explore.log` | `stft_explore.py` 的运行日志（UTF-8）：入选文件清单、帧长对照表、出图路径 |
+| `stage2_awgn_compare.log` | `plot_noise_compare.py` 的运行日志（UTF-8）：选样清单、每档实测 SNR 与 sigma、输出路径 |
 
 ## 项目根
 
 | 文件 | 作用 |
 |---|---|
-| `config_pic.json` | 全项目统一绘图配置；本阶段新增 `stft` 段（时频图 colormap、色标下限、子图网格尺寸、色标宽度占比） |
+| `config_pic.json` | 全项目统一绘图配置；本阶段新增 `stft` 段（时频图 colormap、色标下限、子图网格尺寸、色标宽度占比）与 `stage2` 段（加噪对比图尺寸） |

@@ -1,0 +1,19 @@
+{
+  "_说明": "Q2.5 stage_2（探针）参数。方法配置、SNR 档位、随机种子从 stage_1/config.json 读，保证与出图一致。",
+
+  "_probe_files_说明": "探针样本：字符串 \"all\" 表示整个 split 全量（后续大批量），也可写具体文件名列表",
+  "probe_files": ["A1_IN_S0_slice_1.mat"],
+  "_probe_split_说明": "probe_files 为 \"all\" 时使用的 split，同时决定种子派生",
+  "probe_split": "train",
+  "_probe_scene_说明": "probe_files 为 \"all\" 时的场景筛选；null 表示不限",
+  "probe_scene": "IN_S0",
+
+  "_out_xlsx_说明": "探针结果 xlsx（说明/明细/汇总 三个 sheet）；命令行 --out-xlsx 可覆盖",
+  "out_xlsx": "result/Q2.5/probe_metrics.xlsx",
+
+  "_cache_f_x_说明": "是否在各 SNR 之间缓存方法在干净谱上的输出。true 更快（单条约 90 秒），但每个方法的整幅数组约 61 MB，缓存整轮会让单进程峰值逼近 0.9 GB；内存紧张时保持 false（单条约 150 秒）",
+  "cache_f_x": false,
+
+  "_workers_说明": "并行进程数；1 为单进程，全量跑建议 4~8（每个进程峰值约 0.5 GB，按内存余量定）",
+  "workers": 1
+}
