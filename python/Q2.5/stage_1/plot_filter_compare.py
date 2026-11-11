@@ -54,15 +54,20 @@ def parse_args():
     return parser.parse_args()
 
 
-def build_noise_list(iq, snr_list, base_seed, split_id, salt, awgn):
-    """按 SNR 预生成噪声段；出图与探针共用同一套种子，保证图数一致。"""
-    power = awgn.signal_power(iq)
+def build_noise_list(iq, snr_list, base_seed, split_id, salt, awgn, noise_cfg=None):
+    """按 SNR 预生成噪声段；出图与探针共用同一套种子，保证图数一致。
+
+    加噪方案由 ``noise_cfg``（Q2 stage_2 的 config）决定：``power`` 为原有
+    按整段功率反推，``higuchi`` 为分形分段后补足差额。分段统计只算一次，
+    各档 SNR 复用。
+    """
+    stats = awgn.fractal_stats(iq, noise_cfg)
     noise_list = []
     for snr_idx, snr_db in enumerate(snr_list):
         rng = awgn.make_rng(int(base_seed), int(split_id), snr_idx,
                             extra=[int(salt), 0])
-        sigma = awgn.sigma_for_snr(power, float(snr_db))
-        noise_list.append(awgn.generate_noise(iq.size, sigma, rng))
+        noise, _ = awgn.make_noise(iq, float(snr_db), rng, noise_cfg, stats=stats)
+        noise_list.append(noise)
     return noise_list
 
 
@@ -72,30 +77,58 @@ def select_group(processors, names):
     return [p for p in processors if str(p["name"]) in wanted]
 
 
-def build_rows(iq_clean, noise_list, processors, params, floor, max_frames=None):
-    """构造绘图数据：每行一个处理器（首行为无滤波），每列一档 SNR。
+def build_rows(iq_clean, noise_list, processors, params, floor, max_frames=None,
+               db_ref="panel", row_specs=None):
+    """构造绘图数据：每行一个处理器或一条方法链，每列一档 SNR。
 
-    流程：加噪 → STFT 得幅度谱 → 幅度域预处理 → dB。
-    dB 参考按**列**取：该列最上方（no filter，即加了同档噪声但未做预处理）
-    的 STFT 峰值，便于在列内看出各参数相对“不处理”衰减了多少。
+    流程：加噪 → STFT 得幅度谱 → 按链顺序做幅度域预处理 → dB。
+
+    ``row_specs`` 给出时按它建行（每行 ``{"label": 显示名, "chain": [方法 label, ...]}``，
+    链按顺序把 ``fn`` 套起来；``chain`` 为空即“无滤波”基线行）；
+    为 None 时沿用旧行为：首行无滤波 + 每个处理器一行。
+
+    ``db_ref`` 决定 0 dB 参考：
+
+    - ``panel``（默认）：每格用自己的幅度峰值，等价于逐子图归一化，
+      直接读出各方法把噪底压到相对峰值多少 dB；
+    - ``column``：同一列（同档 SNR）所有行共用该列未滤波含噪谱的峰值，
+      便于看出各参数相对“不处理”衰减了多少。
 
     ``max_frames`` 透传给 :func:`q25_common.mag_to_db`，沿时间轴做最大值池化：
-    帧数远超图像像素，逐帧保留只会让 5 行 × 5 列的单张图占到 1.5 GB。
+    帧数远超图像像素，逐帧保留只会让单张图占到 GB 级内存。
     """
     fs, frame_len, hop, n_fft, window = params
-    rows = [{"name": "none", "label": "no filter", "cells": []}]
-    rows += [{"name": p["name"], "label": p["label"], "cells": []} for p in processors]
-    fns = [p["fn"] for p in processors]
+    by_label = {str(p["label"]): p["fn"] for p in processors}
+
+    if row_specs:
+        rows = [{"label": str(spec["label"]),
+                 "chain": [str(c) for c in spec.get("chain", [])],
+                 "cells": []} for spec in row_specs]
+        for row in rows:
+            for label in row["chain"]:
+                if label not in by_label:
+                    raise SystemExit("rows 引用了未注册的方法 %r；可用: %s"
+                                     % (label, sorted(by_label)))
+    else:
+        rows = [{"label": "no filter", "chain": [], "cells": []}]
+        rows += [{"label": p["label"], "chain": [str(p["label"])], "cells": []}
+                 for p in processors]
+    per_panel = str(db_ref).lower() == "panel"
 
     refs, t_ms, f_mhz = [], None, None
     for noise in noise_list:
         noisy = (iq_clean + noise).astype(np.complex64)
         mag0, t_ms, f_mhz = q25.stft_mag(noisy, fs, frame_len, hop, n_fft, window)
-        ref = float(mag0.max())
-        refs.append(ref)
-        rows[0]["cells"].append(q25.mag_to_db(mag0, ref, floor, max_frames))
-        for row, fn in zip(rows[1:], fns):
-            row["cells"].append(q25.mag_to_db(fn(mag0), ref, floor, max_frames))
+        col_ref = float(mag0.max())           # 列参考：该档 SNR 未滤波谱的峰值
+        refs.append(col_ref)
+        for row in rows:
+            mag_p = mag0
+            for label in row["chain"]:        # 按链顺序串联
+                mag_p = by_label[label](mag_p)
+            ref_p = float(mag_p.max()) if per_panel else col_ref
+            row["cells"].append(q25.mag_to_db(mag_p, ref_p, floor, max_frames))
+            if mag_p is not mag0:
+                del mag_p
         del mag0, noisy
     return rows, t_ms, f_mhz, refs
 
@@ -142,14 +175,16 @@ def plot_grid(rows, t_ms, f_mhz, cfg_q2, pic, snr_list, sample_name, title, out_
 
 
 def resolve_plots(cfg_s1):
-    """取出 plots 分组配置，并校验必填字段。"""
+    """取出 plots 分组配置，并校验必填字段（methods 与 rows 二选一）。"""
     plots = cfg_s1.get("plots")
     if not plots:
         raise SystemExit("config.json 缺少 plots 分组（每张对比图一组）")
     for item in plots:
-        for key in ("name", "methods", "title", "out_png"):
+        for key in ("name", "title", "out_png"):
             if key not in item:
                 raise SystemExit("plots 分组缺少字段 %r：%s" % (key, item))
+        if not item.get("methods") and not item.get("rows"):
+            raise SystemExit("plots 分组需要 methods 或 rows 之一：%s" % item["name"])
     return plots
 
 
@@ -173,6 +208,11 @@ def main():
     max_frames = None if max_frames in (None, 0) else int(max_frames)
     logging.info("时间轴池化上限: %s 帧（null/0 表示逐帧保留）", max_frames)
 
+    db_ref = str(cfg_s1.get("db_ref", "panel")).lower()
+    if db_ref not in ("panel", "column"):
+        raise SystemExit("db_ref 只能是 panel / column，收到 %r" % db_ref)
+    logging.info("dB 参考口径: %s", db_ref)
+
     plots = resolve_plots(cfg_s1)
     if args.only:
         plots = [p for p in plots if str(p["name"]) == str(args.only)]
@@ -193,17 +233,24 @@ def main():
     logging.info("SNR: %s dB", snr_list)
 
     noise_list = build_noise_list(iq, snr_list, cfg_s1["base_seed"],
-                                  split_id, q25.SAMPLE_SALT, awgn)
+                                  split_id, q25.SAMPLE_SALT, awgn, cfg_q2s2)
 
     for plot in plots:
-        group = select_group(all_procs, plot["methods"])
-        if not group:
-            logging.warning("分组 %s 没有匹配到已注册方法 %s，跳过",
-                            plot["name"], plot["methods"])
-            continue
-        logging.info("[%s] 方法: %s", plot["name"], [p["label"] for p in group])
-        rows, t_ms, f_mhz, refs = build_rows(iq, noise_list, group, params, floor,
-                                             max_frames)
+        row_specs = plot.get("rows")
+        if row_specs:
+            pool = all_procs
+            logging.info("[%s] 链式行: %s", plot["name"],
+                         [str(r.get("label")) for r in row_specs])
+        else:
+            group = select_group(all_procs, plot["methods"])
+            if not group:
+                logging.warning("分组 %s 没有匹配到已注册方法 %s，跳过",
+                                plot["name"], plot["methods"])
+                continue
+            pool = group
+            logging.info("[%s] 方法: %s", plot["name"], [p["label"] for p in group])
+        rows, t_ms, f_mhz, refs = build_rows(iq, noise_list, pool, params, floor,
+                                             max_frames, db_ref, row_specs)
         logging.info("[%s] 各列 dB 参考（该列无滤波峰值）: %s",
                      plot["name"], ["%.3g" % r for r in refs])
         out_png = q25.PROJECT_ROOT / str(plot["out_png"])

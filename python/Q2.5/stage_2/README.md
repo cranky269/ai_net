@@ -62,6 +62,12 @@ python python/Q2.5/stage_2/probes.py --workers 8
 |---|---|---|
 | `median_freq` | 频率方向中值窗口 | 3 / 5 / 9 / 17 |
 | `wiener` | 维纳过减系数 `alpha` | 1.0 / 1.5 / 2.0 / 3.0（Excel 里 1.0 显示为 1） |
+| `db_lin` | dB 域线性拉伸的阈值（dB） | -10 / -20 / -30 / -40 |
+| `amp_lin` | 幅度域线性拉伸的阈值（dB） | -10 / -20 / -30 / -40 |
+
+注意 `db_lin` / `amp_lin` 不是抑噪算子：它们把低于阈值的成分压到 -80 dB 地板，
+因此 `noise_residual` 会明显下降，但 `signal_loss` 同步上升，与中值/维纳的
+`total` 对比时要区分“真抑制”与“压低动态范围”。
 
 `param` 按原值写出、**不取整**，否则 `alpha=1.0` 与 `1.5` 会被合并成同一组。
 新增算法只要在 `common/processors.py` 注册，**表结构不需要改**。

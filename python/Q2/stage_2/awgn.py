@@ -108,12 +108,15 @@ def generate_noise(n, sigma, rng):
     return (noise_i + 1j * noise_q).astype(np.complex64)
 
 
-def add_awgn(iq, snr_db, rng):
-    """给单条 IQ 加噪，返回 (加噪信号, meta)；meta 含实测 SNR 与 sigma。"""
+def make_noise(iq, snr_db, rng, cfg=None, stats=None):
+    """统一加噪入口：返回 ``(noise, meta)``（只有原有 power 方案）。
+
+    ``cfg`` / ``stats`` 仅为兼容 Q2.5 的调用签名保留，当前实现不用它们：
+    早期试过的 Higuchi 分形分段方案对宽带调制数据无效，已整体移除。
+    """
     power = signal_power(iq)
     sigma = sigma_for_snr(power, snr_db)
     noise = generate_noise(iq.size, sigma, rng)
-    noisy = (iq + noise).astype(np.complex64)
     noise_power = float(np.mean(np.abs(noise) ** 2, dtype=np.float64))
     measured = 10.0 * np.log10(power / noise_power) if noise_power > 0 else float("inf")
     meta = {
@@ -123,6 +126,18 @@ def add_awgn(iq, snr_db, rng):
         "signal_power": power,
         "noise_power": noise_power,
     }
+    return noise, meta
+
+
+def fractal_stats(iq, cfg=None):
+    """兼容占位：Higuchi 分段方案已移除，恒返回 None（Q2.5 仍在调用）。"""
+    return None
+
+
+def add_awgn(iq, snr_db, rng, cfg=None):
+    """给单条 IQ 加噪，返回 (加噪信号, meta)；meta 含实测 SNR 与 sigma。"""
+    noise, meta = make_noise(iq, snr_db, rng)
+    noisy = (iq + noise).astype(np.complex64)
     return noisy, meta
 
 

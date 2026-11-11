@@ -16,12 +16,16 @@
 """
 
 import numpy as np
-from scipy.ndimage import median_filter
+from scipy.ndimage import median_filter, uniform_filter1d
 from scipy.signal import lfilter
 
 # ==================== 中值滤波参数 ====================
 DEFAULT_MEDIAN_WINDOWS = (3, 5, 9, 17)
 DEFAULT_MEDIAN_MODE = "reflect"
+
+# ==================== 均值滤波参数 ====================
+DEFAULT_MEAN_WINDOWS = (3, 5, 9, 17)
+DEFAULT_MEAN_MODE = "reflect"
 
 # ==================== 维纳滤波参数 ====================
 DEFAULT_WIENER_ALPHAS = (1.0, 1.5, 2.0, 3.0)
@@ -31,6 +35,10 @@ DEFAULT_WIENER_Q = 0.1              # 噪声底分位数
 DEFAULT_WIENER_SMOOTH = 0.7         # 递归平滑系数
 DEFAULT_WIENER_BIAS = 9.49          # 10% 分位 → 噪声均值 的偏差补偿（1/0.1054）
 DEFAULT_WIENER_STEP_RATIO = 0.125   # 分位计算步长 = 窗口 × 该比例（越小越准、越慢）
+
+# ==================== dB 阈值截断参数 ====================
+DEFAULT_THRESH_DB = (-10.0, -20.0, -30.0, -40.0)   # 阈值档位（dB，相对该图峰值）
+DEFAULT_STRETCH_FLOOR_DB = -80.0                   # 拉伸目标下限（dB，对应幅度 1e-4）
 EPS = 1e-12
 # =================================================
 
@@ -51,6 +59,28 @@ def _median_freq_fn(window, mode):
     """生成单个频域中值滤波条目的调用函数。"""
     def _fn(mag, _w=window, _m=mode):
         return median_filter_freq(mag, _w, _m)
+
+    return _fn
+
+
+def mean_filter_freq(mag, window, mode=DEFAULT_MEAN_MODE):
+    """沿频率轴（最后一维）做一维均值滤波，时间轴保持不变。
+
+    与中值滤波的差别：均值会把邻域的强点摊到邻近频点，窄带谱线会被“抹宽”，
+    但噪底的随机起伏压得更平；两者常作为链式后处理的可选项。
+    """
+    window = int(window)
+    if window < 3 or window % 2 == 0:
+        raise ValueError("频率方向均值窗口必须为 >=3 的奇数，收到 %d" % window)
+    out = uniform_filter1d(np.asarray(mag, dtype=np.float32),
+                           size=window, axis=-1, mode=mode)
+    return out if out.dtype == np.float32 else out.astype(np.float32)
+
+
+def _mean_freq_fn(window, mode):
+    """生成单个频域均值滤波条目的调用函数。"""
+    def _fn(mag, _w=window, _m=mode):
+        return mean_filter_freq(mag, _w, _m)
 
     return _fn
 
@@ -204,6 +234,103 @@ def _wiener_fn(alpha, beta, estimator):
     return _fn
 
 
+# ------------------------------------------------------- dB 阈值截断
+def _peak_of(mag):
+    """幅度谱的峰值；空数组返回 0。"""
+    return float(mag.max()) if mag.size else 0.0
+
+
+def _check_threshold(th_db):
+    """阈值必须是负的 dB 值（相对该图峰值），返回 float。"""
+    th_db = float(th_db)
+    if th_db >= 0.0:
+        raise ValueError("阈值需为负的 dB 值（相对峰值），收到 %s" % th_db)
+    return th_db
+
+
+def _relative_db(mag, peak):
+    """幅度 → 相对峰值的 dB（float32），0 dB 即峰值。"""
+    db = np.multiply(np.asarray(mag, dtype=np.float32), np.float32(1.0 / peak))
+    db += np.float32(EPS)                  # 防 log10(0) 得到 -inf
+    np.log10(db, out=db)
+    db *= np.float32(20.0)
+    return db
+
+
+def db_lin_compress(mag, th_db, floor_db=DEFAULT_STRETCH_FLOOR_DB):
+    """dB 域线性：先按阈值钳位，再把 ``[th, 0]`` dB 线性铺满 ``[floor, 0]`` dB。
+
+    等价于幅度谱的 γ 律压缩 ``|Y| = M·(|X|/M)^(|floor/th|)``：
+    ``th=-20``、``floor=-80`` 时指数为 4，-10 dB 的点被映射到 -40 dB。
+    """
+    mag = np.asarray(mag, dtype=np.float32)
+    peak = _peak_of(mag)
+    if peak <= 0.0:
+        return np.zeros_like(mag)
+    th_db = _check_threshold(th_db)
+
+    db = _relative_db(mag, peak)
+    np.maximum(db, np.float32(th_db), out=db)       # 阶段一：钳到阈值
+    db *= np.float32(float(floor_db) / th_db)       # 阶段二：[th, 0] → [floor, 0]
+    db *= np.float32(1.0 / 20.0)
+    np.power(np.float32(10.0), db, out=db)          # dB → 幅度
+    db *= np.float32(peak)
+    return db
+
+
+def amp_lin_stretch(mag, th_db, floor_db=DEFAULT_STRETCH_FLOOR_DB):
+    """幅度域线性：先按阈值钳位，再把幅度区间 ``[lo, M]`` 仿射拉伸到 ``[M·10^(floor/20), M]``。
+
+    与 :func:`db_lin_compress` 的差别在第二步作用于**线性幅度**：接近峰值的成分
+    几乎不变、越弱压得越狠，而不是把 dB 层级等间距拉开。
+    """
+    mag = np.asarray(mag, dtype=np.float32)
+    peak = _peak_of(mag)
+    if peak <= 0.0:
+        return np.zeros_like(mag)
+    th_db = _check_threshold(th_db)
+
+    lo = peak * 10.0 ** (th_db / 20.0)              # 截断后的最小幅度
+    ymin = peak * 10.0 ** (float(floor_db) / 20.0)  # 拉伸目标下限
+    if peak - lo <= 0.0:                            # 阈值趋近 0 的退化情形
+        return mag.copy()
+
+    out = np.maximum(mag, np.float32(lo))           # 阶段一：幅度钳位
+    out -= np.float32(lo)
+    out *= np.float32((peak - ymin) / (peak - lo))
+    out += np.float32(ymin)
+    return out
+
+
+def _db_lin_fn(th_db, floor_db):
+    """生成单个 dB 域线性条目的调用函数。"""
+    def _fn(mag, _t=th_db, _f=floor_db):
+        return db_lin_compress(mag, _t, _f)
+
+    return _fn
+
+
+def _amp_lin_fn(th_db, floor_db):
+    """生成单个幅度域线性条目的调用函数。"""
+    def _fn(mag, _t=th_db, _f=floor_db):
+        return amp_lin_stretch(mag, _t, _f)
+
+    return _fn
+
+
+def _threshold_proc(name, th_db, floor_db, factory):
+    """构造一条阈值截断方法条目（``db_lin`` / ``amp_lin`` 共用结构）。"""
+    th_db = float(th_db)
+    return {
+        "name": name,
+        "domain": "stft",
+        "param": th_db,
+        "label": "%s_%g" % (name, th_db),
+        "cache_f_x": False,          # 逐点映射，重算无代价
+        "fn": factory(th_db, floor_db),
+    }
+
+
 # ---------------------------------------------------------------- 注册
 def make_processors(cfg):
     """按配置生成方法列表。
@@ -224,6 +351,18 @@ def make_processors(cfg):
             # 沿频率滑窗的中值滤波单价高，探针可跨 SNR 缓存它在干净谱上的输出
             "cache_f_x": True,
             "fn": _median_freq_fn(window, mode),
+        })
+
+    mean_mode = str(cfg.get("mean_mode", DEFAULT_MEAN_MODE))
+    for window in cfg.get("mean_windows", list(DEFAULT_MEAN_WINDOWS)):
+        window = int(window)
+        procs.append({
+            "name": "mean_freq",
+            "domain": "stft",
+            "param": window,
+            "label": "mean_freq_%d" % window,
+            "cache_f_x": False,
+            "fn": _mean_freq_fn(window, mean_mode),
         })
 
     alphas = cfg.get("wiener_alphas", list(DEFAULT_WIENER_ALPHAS))
@@ -255,4 +394,11 @@ def make_processors(cfg):
                 "cache_f_x": False,
                 "fn": _wiener_fn(alpha, beta, estimator),
             })
+
+    # 两种 dB 阈值截断共用同一组阈值档位与拉伸下限
+    floor_db = float(cfg.get("stretch_floor_db", DEFAULT_STRETCH_FLOOR_DB))
+    for th_db in cfg.get("db_lin_thresholds", list(DEFAULT_THRESH_DB)):
+        procs.append(_threshold_proc("db_lin", th_db, floor_db, _db_lin_fn))
+    for th_db in cfg.get("amp_lin_thresholds", list(DEFAULT_THRESH_DB)):
+        procs.append(_threshold_proc("amp_lin", th_db, floor_db, _amp_lin_fn))
     return procs

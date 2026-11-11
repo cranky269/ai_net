@@ -6,6 +6,9 @@
     "_median_windows_说明": "频率方向中值窗口（频点数，>=3 的奇数）；当前 STFT 每频点 312.5 kHz，窗口 17 约 5.3 MHz",
     "median_windows": [3, 5, 9, 17],
     "median_mode": "reflect",
+    "_mean_windows_说明": "频率方向均值滤波的窗口档位（频点数，>=3 的奇数）；每频点 312.5 kHz，窗口 3 约 0.94 MHz",
+    "mean_windows": [3, 5, 9, 17],
+    "mean_mode": "reflect",
 
     "_wiener_alphas_说明": "维纳过减系数档位：1.0 为标准维纳，越大压制越强",
     "wiener_alphas": [1.0, 1.5, 2.0, 3.0],
@@ -22,7 +25,14 @@
     "_wiener_step_说明": "分位计算的块间步长（帧）；null 表示按 wiener_step_ratio × wiener_win 推导",
     "wiener_step": null,
     "_wiener_step_ratio_说明": "wiener_step 为 null 时生效；越小越准、越慢（0.125 实测中位误差约 0.8%）",
-    "wiener_step_ratio": 0.125
+    "wiener_step_ratio": 0.125,
+
+    "_db_lin_thresholds_说明": "dB 域线性拉伸（γ 律压缩）的阈值档位；先按阈值钳位，再把 [th, 0] dB 线性铺满 [stretch_floor_db, 0]",
+    "db_lin_thresholds": [-10, -20, -30, -40],
+    "_amp_lin_thresholds_说明": "幅度域线性拉伸的阈值档位；先按阈值钳位，再把幅度区间 [lo, M] 仿射拉伸到 [M·10^(floor/20), M]",
+    "amp_lin_thresholds": [-10, -20, -30, -40],
+    "_stretch_floor_db_说明": "两种拉伸的目标下限（dB）；-80 与 config_pic.json 的色标下限一致",
+    "stretch_floor_db": -80.0
   },
 
   "_plots_说明": "对比图分组：每张图 = 行(无滤波 + 该方法各参数) × 列(各档 SNR)；methods 里的值是 processors.py 的注册名（median_freq / wiener）",
@@ -40,8 +50,46 @@
       "methods": ["wiener"],
       "title": "Amplitude-domain Wiener filter on STFT",
       "out_png": "image/Q2.5/wiener_compare.png"
+    },
+    {
+      "name": "db_lin",
+      "methods": ["db_lin"],
+      "title": "dB-domain linear stretch (gamma-law) on STFT",
+      "out_png": "image/Q2.5/db_lin_compare.png"
+    },
+    {
+      "name": "amp_lin",
+      "methods": ["amp_lin"],
+      "title": "Amplitude-domain linear stretch on STFT",
+      "out_png": "image/Q2.5/amp_lin_compare.png"
+    },
+    {
+      "_name_说明": "拉伸后接平滑的独立图：rows 逐行手写方法链（chain 按顺序串联，空数组=无滤波基线）",
+      "name": "db_lin_smooth",
+      "title": "dB-domain linear stretch (-30 dB) + post frequency smoothing",
+      "rows": [
+        {"label": "no filter", "chain": []},
+        {"label": "db_lin -30", "chain": ["db_lin_-30"]},
+        {"label": "db_lin -30 + med3", "chain": ["db_lin_-30", "median_freq_3"]},
+        {"label": "db_lin -30 + mean3", "chain": ["db_lin_-30", "mean_freq_3"]}
+      ],
+      "out_png": "image/Q2.5/db_lin_smooth.png"
+    },
+    {
+      "name": "amp_lin_smooth",
+      "title": "Amplitude-domain linear stretch (-30 dB) + post frequency smoothing",
+      "rows": [
+        {"label": "no filter", "chain": []},
+        {"label": "amp_lin -30", "chain": ["amp_lin_-30"]},
+        {"label": "amp_lin -30 + med3", "chain": ["amp_lin_-30", "median_freq_3"]},
+        {"label": "amp_lin -30 + mean3", "chain": ["amp_lin_-30", "mean_freq_3"]}
+      ],
+      "out_png": "image/Q2.5/amp_lin_smooth.png"
     }
   ],
+
+  "_db_ref_说明": "dB 参考口径。panel=每个子图各自以自己的最大幅度为 0 dB（默认，能直接读出各方法把噪底压到相对峰值多少 dB；代价是各档 SNR 之间不再可比）；column=同一 SNR 列的所有行共用该列未滤波谱的峰值（旧行为，便于看各参数相对“不处理”衰减了多少）",
+  "db_ref": "panel",
 
   "_plot_max_frames_说明": "出图前沿时间轴做最大值池化的帧数上限（6 万帧画在约 1600 px 宽的图上，逐帧保留会让单张图占到 GB 级内存）；null 或 0 表示不池化、逐帧保留",
   "plot_max_frames": 4096,

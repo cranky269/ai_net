@@ -43,6 +43,9 @@ import q25_common as q25  # noqa: E402
 # ==================== 可调参数 ====================
 CFG_PATH = Path(__file__).with_name("config.json")
 LOG_PATH = q25.LOG_DIR / "stage2_probes.log"
+# 从 Q2 stage_2 config 透传给 awgn.make_noise 的加噪参数（保证与出图/批量一致）
+NOISE_KEYS = ("noising_mode", "fractal_win", "fractal_step", "fractal_k_max",
+              "fractal_d_th", "fractal_min_signal_ratio")
 # =================================================
 
 
@@ -123,8 +126,10 @@ def probe_one_file(task):
     awgn = q25w.import_q2_awgn()
     path = Path(task["data_dir"]) / task["file"]
     x = awgn.load_iq(path)
-    power = awgn.signal_power(x)
     params = tuple(task["stft_params"])
+    noise_cfg = task.get("noise_cfg") or {}
+    # higuchi 模式下分段统计只算一次，各档 SNR 复用（D(t) 与 SNR 无关）
+    stats = awgn.fractal_stats(x, noise_cfg)
 
     spec_x = q25w.stft_mag(x, *params)[0]
     # 首行为恒等算子基线（无预处理），其余为真实预处理方法
@@ -144,8 +149,7 @@ def probe_one_file(task):
         rng = awgn.make_rng(int(task["base_seed"]), int(task["split_id"]),
                             snr_idx,
                             extra=[q25w.SAMPLE_SALT, int(task["sample_idx"])])
-        sigma = awgn.sigma_for_snr(power, float(snr_db))
-        noise = awgn.generate_noise(x.size, sigma, rng)
+        noise, _ = awgn.make_noise(x, float(snr_db), rng, noise_cfg, stats=stats)
         spec_n = q25w.stft_mag(noise, *params)[0]
         spec_xn = q25w.stft_mag((x + noise).astype(np.complex64), *params)[0]
         del noise
@@ -293,11 +297,12 @@ def main():
                  workers)
 
     params = q25.stft_params(cfg_q2)
+    noise_cfg = {k: cfg_q2s2[k] for k in NOISE_KEYS if k in cfg_q2s2}
     tasks = [{
         "file": name, "data_dir": data_dir, "sample_idx": idx,
         "split_id": split_id, "base_seed": int(cfg_s1["base_seed"]),
         "snr_list": snr_list, "methods_cfg": cfg_s1["methods"],
-        "stft_params": list(params),
+        "stft_params": list(params), "noise_cfg": noise_cfg,
         "cache_f_x": bool(cfg_s2.get("cache_f_x", False)),
     } for idx, name in enumerate(files)]
 
